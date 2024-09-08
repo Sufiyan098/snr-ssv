@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced 3D Solar System Visualization</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            width: 300px;
+            display: none;
+            border-radius: 10px;
+        }
+        #info-panel img {
+            width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        #zoom-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="info-panel"></div>
+    <div id="zoom-info">Zoom Level: Solar System</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add stars
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsMaterial = new THREE.PointsMaterial({color: 0xFFFFFF, size: 0.1});
+        const starsVertices = [];
+        for (let i = 0; i < 100000; i++) {
+            const x = THREE.MathUtils.randFloatSpread(10000);
+            const y = THREE.MathUtils.randFloatSpread(10000);
+            const z = THREE.MathUtils.randFloatSpread(10000);
+            starsVertices.push(x, y, z);
+        }
+        starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+        const starField = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(starField);
+
+        const textureLoader = new THREE.TextureLoader();
+
+        const planets = [
+            { name: 'Sun', radius: 50, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Map_of_the_full_sun.jpg/1024px-Map_of_the_full_sun.jpg', orbitRadius: 0, info: 'The star at the center of our Solar System.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/640px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg' },
+            { name: 'Mercury', radius: 2, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Mercury_colorenhanced.png/1024px-Mercury_colorenhanced.png', orbitRadius: 100, info: 'The smallest planet in our Solar System and closest to the Sun.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Mercury_in_color_-_Prockter07-edit1.jpg/640px-Mercury_in_color_-_Prockter07-edit1.jpg' },
+            { name: 'Venus', radius: 3.5, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/19/Venus_Earth_Comparison.png', orbitRadius: 150, info: 'Often called Earth\'s twin because of their similar size and mass.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/PIA23791-Venus-NewlyProcessedView-20200608.jpg/640px-PIA23791-Venus-NewlyProcessedView-20200608.jpg' },
+            { name: 'Earth', radius: 4, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/1024px-The_Blue_Marble_%28remastered%29.jpg', orbitRadius: 200, info: 'Our home planet, the only known planet to harbor life.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/640px-The_Earth_seen_from_Apollo_17.jpg' },
+            { name: 'Mars', radius: 3, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/1024px-OSIRIS_Mars_true_color.jpg', orbitRadius: 250, info: 'Known as the Red Planet due to its reddish appearance.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/640px-OSIRIS_Mars_true_color.jpg' },
+            { name: 'Jupiter', radius: 8, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg', orbitRadius: 350, info: 'The largest planet in our Solar System.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/640px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg' },
+            { name: 'Saturn', radius: 7, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg', orbitRadius: 450, info: 'Known for its prominent ring system.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/640px-Saturn_during_Equinox.jpg' },
+            { name: 'Uranus', radius: 5, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg', orbitRadius: 550, info: 'An ice giant with a tilted rotation axis.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/640px-Uranus2.jpg' },
+            { name: 'Neptune', radius: 5, textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg', orbitRadius: 650, info: 'The windiest planet in our Solar System.', image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/640px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg' }
+        ];
+
+        const solarSystem = new THREE.Object3D();
+        scene.add(solarSystem);
+
+        const planetMeshes = [];
+
+        planets.forEach((planet, index) => {
+            const geometry = new THREE.SphereGeometry(planet.radius, 32, 32);
+            const material = new THREE.MeshBasicMaterial();
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            textureLoader.load(planet.textureUrl, (texture) => {
+                material.map = texture;
+                material.needsUpdate = true;
+            });
+
+            if (index > 0) {  // Skip the Sun
+                mesh.position.x = planet.orbitRadius;
+                const orbitGeometry = new THREE.RingGeometry(planet.orbitRadius - 0.5, planet.orbitRadius + 0.5, 64);
+                const orbitMaterial = new THREE.MeshBasicMaterial({color: 0x444444, side: THREE.DoubleSide});
+                const orbitMesh = new THREE.Mesh(orbitGeometry, orbitMaterial);
+                orbitMesh.rotation.x = Math.PI / 2;
+                solarSystem.add(orbitMesh);
+            }
+            solarSystem.add(mesh);
+            planetMeshes.push(mesh);
+        });
+
+        // Add asteroid belt
+        const asteroidBelt = new THREE.Object3D();
+        for (let i = 0; i < 2000; i++) {
+            const radius = Math.random() * 0.5 + 0.5;
+            const geometry = new THREE.SphereGeometry(radius, 8, 8);
+            const material = new THREE.MeshBasicMaterial({color: 0x888888});
+            const asteroid = new THREE.Mesh(geometry, material);
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 50 + 275;
+            asteroid.position.set(
+                Math.cos(angle) * distance,
+                (Math.random() - 0.5) * 10,
+                Math.sin(angle) * distance
+            );
+            asteroidBelt.add(asteroid);
+        }
+        solarSystem.add(asteroidBelt);
+
+        camera.position.z = 1000;
+
+        const infoPanel = document.getElementById('info-panel');
+        const zoomInfo = document.getElementById('zoom-info');
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        window.addEventListener('click', () => {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(planetMeshes);
+
+            if (intersects.length > 0) {
+                const planet = planets[planetMeshes.indexOf(intersects[0].object)];
+                infoPanel.innerHTML = `<h2>${planet.name}</h2><p>${planet.info}</p><p>Radius: ${planet.radius} units<br>Orbit: ${planet.orbitRadius} units</p><img src="${planet.image}" alt="${planet.name}">`;
+                infoPanel.style.display = 'block';
+            } else {
+                infoPanel.style.display = 'none';
+            }
+        });
+
+        // Zoom and rotation controls
+        let zoomLevel = 1000;
+        let rotationSpeed = 0.0005;
+
+        document.addEventListener('wheel', (event) => {
+            zoomLevel += event.deltaY * 0.5;
+            zoomLevel = Math.max(200, Math.min(zoomLevel, 2000));
+            updateZoomInfo();
+        });
+
+        function updateZoomInfo() {
+            if (zoomLevel > 1600) {
+                zoomInfo.textContent = 'Zoom Level: Universe';
+            } else if (zoomLevel > 800) {
+                zoomInfo.textContent = 'Zoom Level: Solar System';
+            } else {
+                zoomInfo.textContent = 'Zoom Level: Planetary';
+            }
+        }
+
+        let isDragging = false;
+        let previousMousePosition = {
+            x: 0,
+            y: 0
+        };
+
+        document.addEventListener('mousedown', () => {
+            isDragging = true;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaMove = {
+                    x: e.offsetX - previousMousePosition.x,
+                    y: e.offsetY - previousMousePosition.y
+                };
+
+                solarSystem.rotation.y += deltaMove.x * 0.005;
+                solarSystem.rotation.x += deltaMove.y * 0.005;
+            }
+
+            previousMousePosition = {
+                x: e.offsetX,
+                y: e.offsetY
+            };
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            planetMeshes.forEach((mesh, index) => {
+                if (index > 0) {  // Skip the Sun
+                    const planet = planets[index];
+                    const angle = Date.now() * rotationSpeed * (1 / Math.sqrt(planet.orbitRadius));
+                    mesh.position.x = Math.cos(angle) * planet.orbitRadius;
+                    mesh.position.z = Math.sin(angle) * planet.orbitRadius;
+                }
+                mesh.rotation.y += 0.005 / (index + 1);  // Rotate planets on their axis
+            });
+
+            asteroidBelt.rotation.y += rotationSpeed * 0.5;
+
+            camera.position.z = zoomLevel;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNR SSV - Solar System Visualization</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #project-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #project-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        #creator-name {
+            font-size: 14px;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            width: 300px;
+            display: none;
+            border-radius: 10px;
+        }
+        #info-panel img {
+            width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        #zoom-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="project-info">
+        <div id="project-name">SNR SSV</div>
+        <div id="creator-name">Made by Sufiyan Rajput</div>
+    </div>
+    <div id="info-panel"></div>
+    <div id="zoom-info">Zoom Level: Solar System</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ... (rest of the JavaScript code remains unchanged)
+    </script>
+</body>
+</html>
